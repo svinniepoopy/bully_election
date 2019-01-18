@@ -9,7 +9,6 @@
 
 
 int election_simulator::send_message(int pid, message msg, const process& proc) {
-  // ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
   char buf[512];
   bcopy(&msg, buf, sizeof(msg));
   if ((nsent = sendto(proc.socket(), buf, sizeof(msg), 
@@ -43,12 +42,5 @@ int election_simulator::simulate(int nproc) {
   std::uniform_int_distribution<int> dist{0,procsz};
   int randpid = dist(rd);
   set_message(COORDINATOR, randpid);
-  // make this thread wait while other threads finish
-
-  /*
-  std::cout << "destroying pid " << randpid << '\n';
-  procmgr.destroy(randpid);
-  std::cerr << "destroyed " << randpid << '\n';
-  */
   return 1;
 }

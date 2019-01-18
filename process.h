@@ -5,9 +5,6 @@
 
 #include <iostream>
 
-/* process class which is holds a reference
- * to a thread
- */
 class process {
   public:
     process(int);
