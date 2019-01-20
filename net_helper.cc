@@ -17,11 +17,9 @@ int net_helper::make_sock() {
   return sockfd;
 }
 
-
 /* create a local socket and bind a name to it */
 int net_helper::make_named_socket(int sockfd, const std::string& filename) {
   struct sockaddr_un name;
-  name.sun_family = AF_LOCAL;
   /* Bind a name to the socket. */
   name.sun_family = AF_LOCAL;
   strncpy (name.sun_path, filename.c_str(), sizeof (name.sun_path));

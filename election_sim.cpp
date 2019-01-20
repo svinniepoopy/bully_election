@@ -13,20 +13,22 @@
 #include <vector>
 #include <iostream>
 
-int election_simulator::send_message(int sockfd, int pid, message msg, process& proc) {
+int election_simulator::send_message(
+    int sockfd, int dest_peer_id, message msg_out, process& toproc) {
   char buf[512];
-  bcopy(&msg, buf, sizeof(msg));
+  bcopy(&msg_out, buf, sizeof(msg_out));
   struct sockaddr_un name;
   name.sun_family = AF_LOCAL;
-  strncpy (name.sun_path, process::get_named_socket(pid).c_str(), sizeof (name.sun_path));
+  strncpy(name.sun_path, 
+      process::get_named_socket(dest_peer_id).c_str(), 
+      sizeof (name.sun_path));
   name.sun_path[sizeof (name.sun_path) - 1] = '\0';
-
   ssize_t nsent = 0;
   if ((nsent = sendto(
-	  sockfd, buf, sizeof(msg),
+	  sockfd, buf, sizeof(msg_out),
 	  0,
 	  (struct sockaddr*)&name,
-	  sizeof(struct sockaddr_un))) != sizeof(msg)) {
+	  sizeof(struct sockaddr_un))) != sizeof(msg_out)) {
     return -1;
   }
   return 0;
@@ -38,16 +40,23 @@ int election_simulator::simulate(int nproc) {
   if (n!=nproc) {
     std::cout << "error creating all threads\n";
   }
-  std::cerr << "launched " << nproc << " processes.\n";
+  std::cerr << "launched " << nproc << " threads.\n";
   std::vector<process>& plist = procmgr.process_list();
 
   // inform the i'th process that it's 
   // peer is thread with id 2*i
   net_helper net;
   int sockfd = net.make_sock();
+  int dest_peer_id;
   for (int i=0;i<nproc/2;++i) {
-    message msg{message::PEER, i+nproc/2};
+    dest_peer_id = i+nproc/2;
+    std::cout << "PEER " << i << "->" << dest_peer_id  << '\n';
+    message msg{message::PEER, dest_peer_id};
+    std::this_thread::sleep_for(std::chrono::seconds(2));
     send_message(sockfd, i, msg, plist[i]);
+  }
+
+  while (1) {
   }
 
   const int procsz = plist.size();
