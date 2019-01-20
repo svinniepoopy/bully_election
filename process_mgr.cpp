@@ -14,6 +14,6 @@ int process_mgr::launch(int n) {
 void process_mgr::destroy(pid_t pid) {
 }
 
-const std::vector<process>& process_mgr::process_list() const {
+std::vector<process>& process_mgr::process_list() {
   return threads;
 }

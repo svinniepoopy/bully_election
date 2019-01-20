@@ -12,7 +12,7 @@ class process_mgr {
      */
     int launch(int nthreads);
     void destroy(pid_t pid);
-    const std::vector<process>& process_list() const;
+    std::vector<process>& process_list();
     std::vector<process> threads;
 };
 
