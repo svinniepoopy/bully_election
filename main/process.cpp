@@ -19,14 +19,6 @@ namespace {
 const size_t MAXMSG = 512;
 }; // namespace
 
-std::string process::get_named_socket(pid_t pid) {
-  std::stringstream ss;
-  ss << "/tmp/test_sim__";
-  ss << "_";
-  ss << pid; 
-  return ss.str(); 
-}
-
 static std::string msg_type_str(const message* msg) {
   switch (msg->type) {
     case message::PEER:
@@ -46,7 +38,7 @@ process::process(int i):
   id{i},
   net{net_helper{}} {
   std::thread t{run_proc(i, this)};
-  std::cout << "starting thread " << i << '\n';
+  std::cout << "starting thread " << id << '\n';
   t.detach();
 }
 
@@ -58,7 +50,7 @@ int process::handle_msg_peer(const message* msg, const size_t len) {
   ssize_t sz=0;
   struct sockaddr_un name;
   name.sun_family = AF_LOCAL;
-  std::string sock_file = process::get_named_socket(msg->peer_id);
+  std::string sock_file = net.get_named_socket(msg->peer_id);
   strncpy(name.sun_path, 
       sock_file.c_str(),
       sizeof(name.sun_path));
@@ -85,7 +77,7 @@ int process::handle_msg_ping(const message* msg, const size_t len) {
   socklen_t namelen=sizeof(name);
   while (true) {
     sz = recvfrom(socket(), buf, MAXMSG,
-	MSG_WAITALL,	// block until a msg is received
+	0,	// block until a msg is received
 	(struct sockaddr*)&name,
 	&namelen);
     if (sz != sizeof(buf)) {
@@ -124,15 +116,17 @@ int process::socket() const {
 void run_proc::operator()() const {
   net_helper net;
   int sockfd = net.make_sock();
-  std::string sock_file = process::get_named_socket(id);
-  sockfd = net.make_named_socket(sockfd, sock_file); 
+  std::string sock_file = net.get_named_socket(id);
+  sockfd = net.make_named_socket(sockfd, sock_file.c_str()); 
   proc->sockfd = sockfd; 
-  std::cout << "started thread " << id << " at path " << sock_file << '\n';
+  std::cout << "started thread " << id << 
+    " socket " << sockfd << " at path " << sock_file << '\n';
+  proc->id = id;
   char buf[MAXMSG];
   ssize_t size;
   while (true) {
-    size = recv(sockfd, buf, MAXMSG, MSG_WAITALL);
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    size = recv(sockfd, buf, MAXMSG, 0);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     message* msg = (message*)buf;
     if (size>0) {
       std::cout << ">> " << id << " << recvd msg [" 
