@@ -1,1 +1,5 @@
 Simulation of the bully coordinator election algorithm.
+
+Compile and run:
+$ bash ./main/make_sim.sh
+$ ./main #nproc

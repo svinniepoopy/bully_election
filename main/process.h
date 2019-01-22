@@ -17,6 +17,7 @@ class process {
      * @param in: thread id
      */
     process(int id);
+    ~process();
     /* 
      * handles a character string of a given size
      *
@@ -28,27 +29,22 @@ class process {
     int handle_msg_coordinator(const message* msg, const size_t len);
     int handle_msg_elect(const message* msg, const size_t len);
     int handle_msg_ping(const message* msg, const size_t len);
+    int handle_msg_kill(const message* msg, const size_t len);
+
+    void operator()();
 
     /* return the socket this thread is running on */
     int socket() const;
     /* return the socket path as string */
     static std::string get_named_socket(pid_t pid);
 
-    friend struct run_proc;
+    bool is_coordinator;
+    bool is_peer;
+    bool is_client;
     int id;
+    int maxpeers;
     int sockfd;
     net_helper net;	// helper methods for networking
-};
-
-/* run_proc is the call functor for the thread to run */
-struct run_proc {
-  run_proc(int id, process* procs):
-    id{id},
-    proc{procs}
-  {}
-  void operator()() const;
-  int id;
-  process* proc;
 };
 
 #endif

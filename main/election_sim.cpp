@@ -8,6 +8,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include <algorithm>
+#include <functional>
 #include <thread>
 #include <chrono>
 #include <strings.h>
@@ -38,35 +40,46 @@ static int send_message(
   return 0;
 }
 
+static int rand_in_range(int l, int h) {
+  std::random_device rd;
+  std::uniform_int_distribution<int> dist{l,h};
+  return dist(rd);
+}
+
 int election_simulator::simulate(int nproc) {
-  std::vector<process> threads;
+  std::vector<std::thread> threads;
   for (int i=0;i<nproc;++i) {
-    threads.push_back(process(i));
+    process p{i, nproc};
+    threads.push_back(std::thread{p});
   }
+  std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::detach));
   std::cerr << "launched " << threads.size() << " threads.\n";
-  // inform the i'th thread that it's 
-  // peer is thread with id 2*i
+  // inform the i'th thread that it's peer is thread with id 2*i
   net_helper net;
-  int sockfd = net.make_sock();
-  int dest_peer_id;
+  int dest_peer_id, sockfd = net.make_sock();
   for (int i=0;i<nproc/2;++i) {
     dest_peer_id = i+nproc/2;
     std::string sockpath = net.get_named_socket(i);
-    std::cout << "PEER " << i << "->" << dest_peer_id  << '\n';
     message msg{message::PEER, dest_peer_id};
     std::this_thread::sleep_for(std::chrono::seconds(2));
     send_message<message>(sockfd, sockpath, msg);
   }
 
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+
+  int randpid = rand_in_range(0, threads.size());
+  std::cout << "SENDING COORD/KILL to " << randpid << '\n';
+  message msg_coord{message::COORDINATOR, randpid};
+  send_message<message>(sockfd,
+      net.get_named_socket(randpid),
+      msg_coord);
+  message msg_kill{message::KILL, randpid};
+  send_message(message::KILL,
+      net.get_named_socket(randpid),
+      msg_kill);
+
   while (1) {
   }
 
-  /*TODO
-  const int procsz = threads.size();
-  std::random_device rd;
-  std::uniform_int_distribution<int> dist{0,procsz};
-  int randpid = dist(rd);
-  // set_message(COORDINATOR, randpid);
-  // */
   return 1;
 }

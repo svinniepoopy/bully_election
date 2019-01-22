@@ -2,7 +2,14 @@
 #define __MESSAGE_H__
 
 struct message {
-  enum message_type {PEER, COORDINATOR, ELECT, OK};
+  enum message_type {
+    PEER, 
+    COORDINATOR, 
+    ELECT, 
+    OK, 
+    OKACK,
+    KILL
+  };
   message(const message_type& t, const int& id):
     type{t},
     peer_id{id}
