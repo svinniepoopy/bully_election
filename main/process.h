@@ -3,6 +3,7 @@
 
 #include "net_helper.h"
 #include "message.h"
+#include "message_handler.h"
 
 /* process: wrapper to a thread
  *
@@ -42,9 +43,10 @@ class process {
     bool is_peer;
     bool is_client;
     int id;
-    int maxpeers;
+    int npeers;
     int sockfd;
     net_helper net;	// helper methods for networking
+    message_handler handler;	// helper methods to send messages
 };
 
 #endif

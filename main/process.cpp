@@ -1,5 +1,6 @@
 #include "net_helper.h"
 #include "message.h"
+#include "message_handler.h"
 #include "process.h"
 
 #include <unistd.h>
@@ -43,73 +44,58 @@ process::process(int i, int nproc):
   is_peer{false},
   is_client{false},
   id{i},
-  maxpeers{nproc},
+  npeers{nproc},
   sockfd{-1},
-  net{net_helper{}} {
+  net{net_helper{}},
+  handler{message_handler} {
 }
 
 process::~process() {
 }
 
-int process::handle_msg_peer(const message* msg, const size_t len) {
+int process::handler_msg_peer(const message* msg, const size_t len) {
   std::cout << "thread " << id << " recvd " << msg_type_str(msg) << '\n';
-  char buf[MAXMSG];
-  message msg_out{message::OK, id};
-  bcopy(&msg_out, buf, sizeof(*msg));
-  ssize_t sz=0;
-  struct sockaddr_un name;
-  name.sun_family = AF_LOCAL;
   std::string sock_file = net.get_named_socket(msg->peer_id);
-  strncpy(name.sun_path, 
-      sock_file.c_str(),
-      sizeof(name.sun_path));
-  name.sun_path[sizeof(name.sun_path)-1] = '\0';
+  message msg_out{message::OK, id};
   std::cout << "thread " << id << " sending PING to " << sock_file << '\n';
-    sz = sendto(socket(), buf, sizeof(msg),
-	MSG_DONTWAIT,
-	(struct sockaddr*)&name,
-	sizeof(struct sockaddr_un));
-    if (sz != sizeof(msg)) {
-      return -1;
-    }
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+  handler.send_message(socket(), sock_file.c_str(), &msg_out);
+  std::this_thread::sleep_for(std::chrono::seconds(3));
   return 0;
+
 }
 
 int process::handle_msg_ping(const message* msg, const size_t len) {
   std::cout << "thread " << id << "got PING from " << msg->peer_id << "\n";
-  ssize_t sz=0;
-  char buf[MAXMSG];
   // received a ping from a peer, reply with an ack
   message msg_out{message::OKACK, id};
-  bcopy(&msg_out, buf, sizeof(msg_out));
-  struct sockaddr_un name;
-  name.sun_family = AF_LOCAL;
-  std::string sock_file = net.get_named_socket(msg->peer_id);
-  strncpy(name.sun_path, 
-      sock_file.c_str(),
-      sizeof(name.sun_path));
-  name.sun_path[sizeof(name.sun_path)-1] = '\0';
   std::cout << "thread " << id << " sending ACK to " << sock_file << '\n';
-
-  sz = sendto(socket(), buf, MAXMSG,
-      0,	// block until a msg is received
-      (struct sockaddr*)&name,
-      sizeof(struct sockaddr_un));
-  if (sz != sizeof(buf)) {
-    return -1;
-  }
-  std::cout << "thread " << this->id << "recvd PING " << msg_type_str((message*)buf) << '\n'; 
-
+  handler.send_message(socket(), sock_file.c_str(), &msg_out);
   return 0;
 }
 
 int process::handle_msg_coordinator(const message* msg, const size_t len) {
-  is_coordinator = true;
+  if (coordinator_id == id) {	// this thread is now the coordinator
+    is_coordinator = true;
+    for (int peerid=0;peerid<npeers;++peerid) {
+      if (peerid == id) { continue; }
+      std::string peersockname{net.get_named_socket(peerid)};
+      handler.send_message(socket(), 
+	  peersockname.c_str(), 
+	  {message::COORDINATOR, id}); 
+    }
+  } else {
+    for (int peerid=id+1; peerid<npeers;++peerid) {
+      std::string peersockname{net.get_named_socket(peerid)};
+      handler.send_message(socket(),
+	  peersockname.c_str(), 
+	  {message::COORDINATOR, id}); 
+    }
+  }
   return 0;
 }
 
 int process::handle_msg_elect(const message* msg, const size_t len) {
+  // TODO
   return 0;
 }
 
